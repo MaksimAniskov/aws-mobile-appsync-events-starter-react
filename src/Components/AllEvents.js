@@ -1,13 +1,20 @@
-import React, { Component } from "react";
-import { Link } from "react-router-dom";
+import React, {Component} from "react";
+import {Link} from "react-router-dom";
 
-import { graphql, compose } from "react-apollo";
+import {graphql, compose} from "react-apollo";
 import QueryAllEvents from "../GraphQL/QueryAllEvents";
 import MutationDeleteEvent from "../GraphQL/MutationDeleteEvent";
 
 import moment from "moment";
+import SubscriptionEvents from "../GraphQL/SubscriptionEvents";
 
 class AllEvents extends Component {
+
+    subscription;
+
+    componentDidMount() {
+        this.subscription = this.props.subscribeToEvents();
+    }
 
     static defaultProps = {
         events: [],
@@ -18,7 +25,7 @@ class AllEvents extends Component {
         e.preventDefault();
 
         if (window.confirm(`Are you sure you want to delete event ${event.id}`)) {
-            const { deleteEvent } = this.props;
+            const {deleteEvent} = this.props;
 
             await deleteEvent(event);
         }
@@ -48,7 +55,7 @@ class AllEvents extends Component {
     );
 
     render() {
-        const { events } = this.props;
+        const {events} = this.props;
 
         return (
             <div className="ui link cards">
@@ -72,8 +79,28 @@ export default compose(
             options: {
                 fetchPolicy: 'cache-and-network',
             },
-            props: ({ data: { listEvents = { items: [] } } }) => ({
-                events: listEvents.items
+            props: (props) => ({
+                events: props.data.listEvents.items,
+                subscribeToEvents: () => props.data.subscribeToMore({
+                    document: SubscriptionEvents,
+                    variables: {},
+                    updateQuery: (prev, {subscriptionData: {data: {subscribeToEvents}}}) => {
+                        const res = {
+                            ...prev,
+                            ...{
+                                listEvents: {
+                                    ...prev.listEvents,
+                                    items: [
+                                        ...prev.listEvents.items,
+                                        subscribeToEvents,
+                                    ]
+                                }
+                            },
+                        };
+
+                        return res;
+                    }
+                })
             })
         }
     ),
@@ -81,23 +108,23 @@ export default compose(
         MutationDeleteEvent,
         {
             options: {
-                refetchQueries: [{ query: QueryAllEvents }],
-                update: (proxy, { data: { deleteEvent } }) => {
+                refetchQueries: [{query: QueryAllEvents}],
+                update: (proxy, {data: {deleteEvent}}) => {
                     const query = QueryAllEvents;
-                    const data = proxy.readQuery({ query });
+                    const data = proxy.readQuery({query});
 
                     data.listEvents.items = data.listEvents.items.filter(event => event.id !== deleteEvent.id);
 
-                    proxy.writeQuery({ query, data });
+                    proxy.writeQuery({query, data});
                 }
             },
             props: (props) => ({
                 deleteEvent: (event) => {
                     return props.mutate({
-                        variables: { id: event.id },
+                        variables: {id: event.id},
                         optimisticResponse: () => ({
                             deleteEvent: {
-                                ...event, __typename: 'Event', comments: { __typename: 'CommentConnection', items: [] }
+                                ...event, __typename: 'Event', comments: {__typename: 'CommentConnection', items: []}
                             }
                         }),
                     });

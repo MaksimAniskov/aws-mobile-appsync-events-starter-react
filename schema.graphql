@@ -46,6 +46,8 @@ type Query {
 }
 
 type Subscription {
+  subscribeToEvents: Event
+  @aws_subscribe(mutations:["createEvent"])
   subscribeToEventComments(eventId: String!): Comment
-    @aws_subscribe(mutations:["commentOnEvent"])
+  @aws_subscribe(mutations:["commentOnEvent"])
 }
