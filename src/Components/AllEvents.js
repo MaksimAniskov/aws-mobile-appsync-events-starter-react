@@ -80,7 +80,7 @@ export default compose(
                 fetchPolicy: 'cache-and-network',
             },
             props: (props) => ({
-                events: props.data.listEvents.items,
+                events: props.data.listEvents ? props.data.listEvents.items : undefined,
                 subscribeToEvents: () => props.data.subscribeToMore({
                     document: SubscriptionEvents,
                     variables: {},
