@@ -1,0 +1,7 @@
+{
+  "region": "xx-xxxx-x",
+  "graphqlEndpoint": "https://xxxxxxxxxxxxxxxxxxxxxxxxxx.appsync-api.xx-xxxx-x.amazonaws.com/graphql",
+  "identityPoolId": "xx-xxxx-x:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "userPoolId": "xx-xxxx-x_xxxxxxxxx",
+  "userPoolWebClientId": "xxxxxxxxxxxxxxxxxxxxxxxxxx"
+}

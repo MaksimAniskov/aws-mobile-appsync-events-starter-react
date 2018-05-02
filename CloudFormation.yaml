@@ -1,24 +1,17 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 
-Parameters:
-  ApiKeyExpireMoment:
-    Type: Number
-    Description: Unix Epoch time
-
 Resources:
 
   GraphQLApi:
     Type: "AWS::AppSync::GraphQLApi"
     Properties:
       Name: !Sub ${AWS::StackName}
-      AuthenticationType: API_KEY
-
-  ApiKey:
-    Type: "AWS::AppSync::ApiKey"
-    Properties:
-      Expires: !Ref ApiKeyExpireMoment
-      ApiId: !GetAtt GraphQLApi.ApiId
+      AuthenticationType: AMAZON_COGNITO_USER_POOLS
+      UserPoolConfig:
+        AwsRegion: !Sub ${AWS::Region}
+        UserPoolId: !Ref CognitoUserPool
+        DefaultAction: ALLOW
 
   GraphQLSchema:
     Type: "AWS::AppSync::GraphQLSchema"
@@ -297,10 +290,60 @@ Resources:
               Service: appsync.amazonaws.com
             Action: sts:AssumeRole
 
+  CognitoUserPool:
+    Type: "AWS::Cognito::UserPool"
+    Properties:
+      UserPoolName: !Sub ${AWS::StackName}
+      AutoVerifiedAttributes:
+        - email
+
+  CognitoUserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoIdentityPool:
+    Type: "AWS::Cognito::IdentityPool"
+    Properties:
+      IdentityPoolName: !Sub ${AWS::StackName}
+      AllowUnauthenticatedIdentities: no
+      CognitoIdentityProviders:
+        - ProviderName: !GetAtt CognitoUserPool.ProviderName
+          ClientId: !Ref CognitoUserPoolClient
+
+  CognitoIdentityPoolRoleAttachment:
+    Type: "AWS::Cognito::IdentityPoolRoleAttachment"
+    Properties:
+      IdentityPoolId: !Ref CognitoIdentityPool
+      Roles:
+        authenticated: !GetAtt UserRole.Arn
+        unauthenticated: !GetAtt UserRole.Arn
+
+  UserRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-User
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "cognito-identity.amazonaws.com:aud": !Ref CognitoIdentityPool
+
 Outputs:
 
-  EndpointUrl:
+  graphqlEndpoint:
     Value: !GetAtt GraphQLApi.GraphQLUrl
 
-  ApiKey:
-    Value: !GetAtt ApiKey.ApiKey
+  userPoolId:
+    Value: !Ref CognitoUserPool
+
+  userPoolWebClientId:
+    Value: !Ref CognitoUserPoolClient
+
+  identityPoolId:
+    Value: !Ref CognitoIdentityPool

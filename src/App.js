@@ -3,10 +3,13 @@ import { BrowserRouter as Router, Route } from 'react-router-dom';
 import "semantic-ui-css/semantic.min.css";
 import 'react-datepicker/dist/react-datepicker.css';
 
-import appSyncConfig from "./AppSync";
+import appSyncConfig from "./AppSync.json";
 import { ApolloProvider } from "react-apollo";
 import AWSAppSyncClient from "aws-appsync";
 import { Rehydrated } from "aws-appsync-react";
+
+import Amplify, { Auth } from 'aws-amplify';
+import { withAuthenticator } from 'aws-amplify-react';
 
 import './App.css';
 import AllEvents from './Components/AllEvents';
@@ -34,8 +37,8 @@ const client = new AWSAppSyncClient({
   url: appSyncConfig.graphqlEndpoint,
   region: appSyncConfig.region,
   auth: {
-    type: appSyncConfig.authenticationType,
-    apiKey: appSyncConfig.apiKey,
+    type: 'AMAZON_COGNITO_USER_POOLS',
+    jwtToken: async () => (await Auth.currentSession()).getAccessToken().getJwtToken()
   }
 });
 
@@ -47,4 +50,14 @@ const WithProvider = () => (
   </ApolloProvider>
 );
 
-export default WithProvider;
+Amplify.configure({
+  Auth: {
+    identityPoolId: appSyncConfig.identityPoolId,
+    region: appSyncConfig.region,
+    userPoolId: appSyncConfig.userPoolId,
+    userPoolWebClientId: appSyncConfig.userPoolWebClientId,
+    mandatorySignIn: true
+  }
+});
+
+export default withAuthenticator(WithProvider, { includeGreetings: true });
